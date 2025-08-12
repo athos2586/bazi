@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>八字与神煞计算器（中国时区·BootCDN版）</title>
+<title>八字与神煞计算器（中国时区·多CDN自动切换）</title>
 <style>
 :root{--bg:#0b0f14;--card:#121821;--muted:#8aa0b3;--text:#e6f0ff;--accent:#66d9ef;--accent2:#a6e22e;--danger:#ff6b6b;--border:#233041}
 *{box-sizing:border-box}
@@ -30,8 +30,8 @@ footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12p
 </head>
 <body>
 <header>
-  <h1>八字与神煞计算器（中国时区·BootCDN版）</h1>
-  <p class="subtitle">公历日期/时间（固定中国时区 UTC+8）→ 四柱八字 + 常见神煞</p>
+  <h1>八字与神煞计算器（中国时区·多CDN自动切换）</h1>
+  <p class="subtitle">公历日期/时间（固定中国时区 UTC+8）→ 四柱八字 + 常见神煞（桃花/天乙/文昌/驿马/日德/月德）</p>
 </header>
 
 <main>
@@ -63,11 +63,54 @@ footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12p
 </main>
 <footer>© 2025 BaZi Calculator</footer>
 
-<!-- Load lunar-javascript from BootCDN -->
-<script src="https://cdn.bootcdn.net/ajax/libs/lunar-javascript/1.6.13/lunar.min.js"></script>
 <script>
-const engineEl=document.getElementById('engine');
-const out=html=>document.getElementById('output').innerHTML=html;
+/** Multi-CDN loader for lunar-javascript **/
+const ENGINE = { loadedFrom: null, version: '1.6.13' };
+const engineEl = document.getElementById('engine');
+const CDN_URLS = [
+  // BootCDN
+  `https://cdn.bootcdn.net/ajax/libs/lunar-javascript/${ENGINE.version}/lunar.min.js`,
+  // Staticfile.org
+  `https://cdn.staticfile.org/lunar-javascript/${ENGINE.version}/lunar.min.js`,
+  // jsDelivr
+  `https://cdn.jsdelivr.net/npm/lunar-javascript@${ENGINE.version}/lunar.min.js`,
+];
+
+function loadScript(url, timeoutMs=8000){
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    const t = setTimeout(() => {
+      s.remove();
+      reject(new Error('timeout'));
+    }, timeoutMs);
+    s.src = url;
+    s.async = true;
+    s.onload = () => { clearTimeout(t); resolve(url); };
+    s.onerror = () => { clearTimeout(t); s.remove(); reject(new Error('error')); };
+    document.head.appendChild(s);
+  });
+}
+
+async function loadLunarWithFallback(){
+  for (const url of CDN_URLS) {
+    try {
+      engineEl.textContent = `引擎：尝试加载 ${url} …`;
+      await loadScript(url);
+      if (window.Lunar && window.Lunar.Solar) {
+        ENGINE.loadedFrom = url;
+        engineEl.textContent = `引擎：JavaScript（lunar-javascript · 已加载：${new URL(url).host}）`;
+        return true;
+      }
+    } catch (_) {
+      // continue
+    }
+  }
+  engineEl.textContent = '引擎：加载失败（所有 CDN 都不可达）';
+  return false;
+}
+
+/** App logic **/
+const out = (html) => document.getElementById('output').innerHTML = html;
 
 function splitGZ(gz){
   if(!gz) return {gan:'',zhi:'',gz:''};
@@ -119,7 +162,7 @@ function compute(){
     const [hh,mm]=time.split(':').map(v=>parseInt(v,10));
 
     const Solar=window.Lunar.Solar;
-    const lunar=Solar.fromYmdHms(y,m,d,hh,mm,0).getLunar();
+    const lunar=Solar.fromYmdHms(y,m,d,hh,mm,0).getLunar(); // 中国时区固定，直接当作当地时间
     const ec=lunar.getEightChar();
     const solarText=`${y}年${m}月${d}日 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}（中国标准时间 UTC+8）`;
 
@@ -133,16 +176,16 @@ function compute(){
       },
       shensha:{
         taohua:(lunar.getPeachBlossom&&lunar.getPeachBlossom())||'',
-        tianyi:(lunar.getTianYi&&lunar.getTianYi())||'',
-        wencang:(lunar.getWenChang&&lunar.getWenChang())||'',
-        yima:(lunar.getYiMa&&lunar.getYiMa())||'',
+        tianyi:(lunar.getTianYi&&lunar.getTianYi())|| (lunar.getTianYiGuiRen&&lunar.getTianYiGuiRen()) || '',
+        wencang:(lunar.getWenChang&&lunar.getWenChang())|| (lunar.getWenchang&&lunar.getWenchang()) || '',
+        yima:(lunar.getYiMa&&lunar.getYiMa())|| (lunar.getYima&&lunar.getYima()) || '',
         rde:(lunar.getRiDe&&lunar.getRiDe())||'',
         yde:(lunar.getYueDe&&lunar.getYueDe())||''
       },
       meta:{
         shengxiao:lunar.getYearShengXiao(),
         lunarDate:lunar.toString(),
-        jieqi:lunar.getJieQi()||''
+        jieqi:(lunar.getJieQi&&lunar.getJieQi())||''
       }
     };
     renderResult(payload);
@@ -151,14 +194,10 @@ function compute(){
   }
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
-  if(window.Lunar && window.Lunar.Solar){
-    engineEl.textContent='引擎：JavaScript（lunar-javascript·BootCDN）';
-  }else{
-    engineEl.textContent='引擎：加载失败';
-  }
-  document.getElementById('bazi-form').addEventListener('submit',e=>{e.preventDefault();compute();});
-  document.getElementById('reset').addEventListener('click',()=>{
+document.addEventListener('DOMContentLoaded', async ()=>{
+  await loadLunarWithFallback();
+  document.getElementById('bazi-form').addEventListener('submit', e => { e.preventDefault(); compute(); });
+  document.getElementById('reset').addEventListener('click', () => {
     document.getElementById('bazi-form').reset();
     out('<p class="muted">请先填写上方信息并点击“计算”。</p>');
   });
