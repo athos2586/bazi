@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>八字与神煞计算器（中国时区·CDN版）</title>
+<title>八字与神煞计算器（中国时区·BootCDN版）</title>
 <style>
 :root{--bg:#0b0f14;--card:#121821;--muted:#8aa0b3;--text:#e6f0ff;--accent:#66d9ef;--accent2:#a6e22e;--danger:#ff6b6b;--border:#233041}
 *{box-sizing:border-box}
@@ -30,7 +30,7 @@ footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12p
 </head>
 <body>
 <header>
-  <h1>八字与神煞计算器（中国时区·CDN版）</h1>
+  <h1>八字与神煞计算器（中国时区·BootCDN版）</h1>
   <p class="subtitle">公历日期/时间（固定中国时区 UTC+8）→ 四柱八字 + 常见神煞</p>
 </header>
 
@@ -63,8 +63,8 @@ footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12p
 </main>
 <footer>© 2025 BaZi Calculator</footer>
 
-<!-- Load lunar-javascript from CDN -->
-<script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.13/lunar.min.js"></script>
+<!-- Load lunar-javascript from BootCDN -->
+<script src="https://cdn.bootcdn.net/ajax/libs/lunar-javascript/1.6.13/lunar.min.js"></script>
 <script>
 const engineEl=document.getElementById('engine');
 const out=html=>document.getElementById('output').innerHTML=html;
@@ -153,7 +153,7 @@ function compute(){
 
 document.addEventListener('DOMContentLoaded',()=>{
   if(window.Lunar && window.Lunar.Solar){
-    engineEl.textContent='引擎：JavaScript（lunar-javascript·CDN）';
+    engineEl.textContent='引擎：JavaScript（lunar-javascript·BootCDN）';
   }else{
     engineEl.textContent='引擎：加载失败';
   }
