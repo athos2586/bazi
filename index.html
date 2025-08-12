@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>八字与神煞计算器（中国时区固定版）</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>八字与神煞计算器（中国时区·单文件·离线）</title>
 <style>
 :root{--bg:#0b0f14;--card:#121821;--muted:#8aa0b3;--text:#e6f0ff;--accent:#66d9ef;--accent2:#a6e22e;--danger:#ff6b6b;--border:#233041}
 *{box-sizing:border-box}
@@ -30,7 +30,7 @@ footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12p
 </head>
 <body>
 <header>
-  <h1>八字与神煞计算器（中国时区固定版）</h1>
+  <h1>八字与神煞计算器（中国时区·单文件·离线）</h1>
   <p class="subtitle">公历日期/时间（固定中国时区 UTC+8）→ 四柱八字 + 常见神煞</p>
 </header>
 
@@ -40,17 +40,17 @@ footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12p
     <form id="bazi-form">
       <div class="row">
         <label for="date">公历日期</label>
-        <input id="date" type="date" required>
+        <input id="date" type="date" required />
       </div>
       <div class="row">
         <label for="time">时间</label>
-        <input id="time" type="time" step="60" value="12:00" required>
+        <input id="time" type="time" step="60" value="12:00" required />
       </div>
       <div class="row actions">
         <button type="submit">计算</button>
         <button type="button" id="reset">清空</button>
       </div>
-      <p id="engine" class="muted">引擎：加载中…</p>
+      <p id="engine" class="muted">引擎：初始化中…</p>
     </form>
   </section>
 
@@ -63,106 +63,134 @@ footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12p
 </main>
 <footer>© 2025 BaZi Calculator</footer>
 
-<!-- 引入 lunar-javascript -->
-<script src="https://unpkg.com/lunar-javascript"></script>
+<!-- ① 在下面的 <script> 中粘贴 “lunar-javascript” 的浏览器最小化代码（整段） -->
+<script id="lunar-inline">
+const {Solar, Lunar, Foto, Tao, NineStar, EightChar, SolarWeek, SolarMonth, SolarSeason, SolarHalfYear, SolarYear, LunarMonth, LunarYear, LunarTime, ShouXingUtil, SolarUtil, LunarUtil, FotoUtil, TaoUtil, HolidayUtil, NineStarUtil, I18n} = require('./lunar.js')
+
+module.exports = {
+  Solar: Solar,
+  Lunar: Lunar,
+  Foto: Foto,
+  Tao: Tao,
+  NineStar: NineStar,
+  EightChar: EightChar,
+  SolarWeek: SolarWeek,
+  SolarMonth: SolarMonth,
+  SolarSeason: SolarSeason,
+  SolarHalfYear: SolarHalfYear,
+  SolarYear: SolarYear,
+  LunarMonth: LunarMonth,
+  LunarYear: LunarYear,
+  LunarTime: LunarTime,
+  ShouXingUtil: ShouXingUtil,
+  SolarUtil: SolarUtil,
+  LunarUtil: LunarUtil,
+  FotoUtil: FotoUtil,
+  TaoUtil: TaoUtil,
+  HolidayUtil: HolidayUtil,
+  NineStarUtil: NineStarUtil,
+  I18n: I18n
+}
+</script>
+
+<!-- ② 应用逻辑（使用上面内联的 Lunar.Solar/Lunar.Lunar） -->
 <script>
-const engineEl=document.getElementById('engine');
-const out=html=>document.getElementById('output').innerHTML=html;
+(function(){
+  const engineEl=document.getElementById('engine');
+  const out=html=>document.getElementById('output').innerHTML=html;
 
-function splitGZ(gz){
-  if(!gz) return {gan:'',zhi:'',gz:''};
-  const zhi='子丑寅卯辰巳午未申酉戌亥';
-  for(let i=0;i<gz.length;i++){
-    if(zhi.includes(gz[i])) return {gan:gz.slice(0,i), zhi:gz.slice(i), gz};
+  function splitGZ(gz){
+    if(!gz) return {gan:'',zhi:'',gz:''};
+    const zhi='子丑寅卯辰巳午未申酉戌亥';
+    for(let i=0;i<gz.length;i++){ if(zhi.includes(gz[i])) return {gan:gz.slice(0,i), zhi:gz.slice(i), gz}; }
+    return {gan:'', zhi:'', gz};
   }
-  return {gan:'', zhi:'', gz};
-}
 
-function renderResult(payload){
-  const {solarText,pillars,shensha,meta}=payload;
-  out(`
-    <div class="grid">
-      <div><h3>公历</h3><p>${solarText}</p></div>
-      <div><h3>农历</h3><p>${meta.lunarDate||'—'}</p></div>
-      <div><h3>生肖</h3><p>${meta.shengxiao||'—'}</p></div>
-      <div><h3>节气</h3><p>${meta.jieqi||'—'}</p></div>
-    </div>
-    <h3>四柱八字</h3>
-    <table class="pillars">
-      <thead><tr><th>柱</th><th>天干</th><th>地支</th><th>干支</th></tr></thead>
-      <tbody>
-        <tr><td>年柱</td><td>${pillars.year.gan}</td><td>${pillars.year.zhi}</td><td>${pillars.year.gz}</td></tr>
-        <tr><td>月柱</td><td>${pillars.month.gan}</td><td>${pillars.month.zhi}</td><td>${pillars.month.gz}</td></tr>
-        <tr><td>日柱</td><td>${pillars.day.gan}</td><td>${pillars.day.zhi}</td><td>${pillars.day.gz}</td></tr>
-        <tr><td>时柱</td><td>${pillars.time.gan}</td><td>${pillars.time.zhi}</td><td>${pillars.time.gz}</td></tr>
-      </tbody>
-    </table>
-    <h3>常见神煞</h3>
-    <ul class="stars">
-      <li><strong>桃花：</strong>${shensha.taohua||'—'}</li>
-      <li><strong>天乙贵人：</strong>${shensha.tianyi||'—'}</li>
-      <li><strong>文昌：</strong>${shensha.wencang||'—'}</li>
-      <li><strong>驿马：</strong>${shensha.yima||'—'}</li>
-      <li><strong>日德：</strong>${shensha.rde||'—'}</li>
-      <li><strong>月德：</strong>${shensha.yde||'—'}</li>
-    </ul>
-  `);
-}
-
-function compute(){
-  try{
-    const date=document.getElementById('date').value;
-    const time=document.getElementById('time').value;
-    if(!date||!time) throw new Error('请完整填写日期和时间');
-    const [y,m,d]=date.split('-').map(v=>parseInt(v,10));
-    const [hh,mm]=time.split(':').map(v=>parseInt(v,10));
-
-    // 固定中国时区，无 DST
-    const Solar=window.Lunar.Solar;
-    const lunar=Solar.fromYmdHms(y,m,d,hh,mm,0).getLunar();
-    const ec=lunar.getEightChar();
-    const solarText=`${y}年${m}月${d}日 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}（中国标准时间 UTC+8）`;
-
-    const payload={
-      solarText,
-      pillars:{
-        year:splitGZ(ec.getYear()),
-        month:splitGZ(ec.getMonth()),
-        day:splitGZ(ec.getDay()),
-        time:splitGZ(ec.getTime())
-      },
-      shensha:{
-        taohua:(lunar.getPeachBlossom&&lunar.getPeachBlossom())||'',
-        tianyi:(lunar.getTianYi&&lunar.getTianYi())||'',
-        wencang:(lunar.getWenChang&&lunar.getWenChang())||'',
-        yima:(lunar.getYiMa&&lunar.getYiMa())||'',
-        rde:(lunar.getRiDe&&lunar.getRiDe())||'',
-        yde:(lunar.getYueDe&&lunar.getYueDe())||''
-      },
-      meta:{
-        shengxiao:lunar.getYearShengXiao(),
-        lunarDate:lunar.toString(),
-        jieqi:lunar.getJieQi()||''
-      }
-    };
-    renderResult(payload);
-  }catch(e){
-    out(`<p class="error">计算失败：${e.message||e}</p>`);
+  function renderResult(payload){
+    const {solarText,pillars,shensha,meta}=payload;
+    out(`
+      <div class="grid">
+        <div><h3>公历</h3><p>${solarText}</p></div>
+        <div><h3>农历</h3><p>${meta.lunarDate||'—'}</p></div>
+        <div><h3>生肖</h3><p>${meta.shengxiao||'—'}</p></div>
+        <div><h3>节气</h3><p>${meta.jieqi||'—'}</p></div>
+      </div>
+      <h3>四柱八字</h3>
+      <table class="pillars">
+        <thead><tr><th>柱</th><th>天干</th><th>地支</th><th>干支</th></tr></thead>
+        <tbody>
+          <tr><td>年柱</td><td>${pillars.year.gan}</td><td>${pillars.year.zhi}</td><td>${pillars.year.gz}</td></tr>
+          <tr><td>月柱</td><td>${pillars.month.gan}</td><td>${pillars.month.zhi}</td><td>${pillars.month.gz}</td></tr>
+          <tr><td>日柱</td><td>${pillars.day.gan}</td><td>${pillars.day.zhi}</td><td>${pillars.day.gz}</td></tr>
+          <tr><td>时柱</td><td>${pillars.time.gan}</td><td>${pillars.time.zhi}</td><td>${pillars.time.gz}</td></tr>
+        </tbody>
+      </table>
+      <h3>常见神煞</h3>
+      <ul class="stars">
+        <li><strong>桃花：</strong>${shensha.taohua||'—'}</li>
+        <li><strong>天乙贵人：</strong>${shensha.tianyi||'—'}</li>
+        <li><strong>文昌：</strong>${shensha.wencang||'—'}</li>
+        <li><strong>驿马：</strong>${shensha.yima||'—'}</li>
+        <li><strong>日德：</strong>${shensha.rde||'—'}</li>
+        <li><strong>月德：</strong>${shensha.yde||'—'}</li>
+      </ul>
+    `);
   }
-}
 
-document.addEventListener('DOMContentLoaded',()=>{
-  if(window.Lunar && window.Lunar.Solar){
-    engineEl.textContent='引擎：JavaScript（lunar-javascript）';
-  }else{
-    engineEl.textContent='引擎：加载失败';
+  function compute(){
+    try{
+      if(!window.Lunar || !window.Lunar.Solar) throw new Error('历法库未就绪，请确认已内联 lunar-javascript');
+      const date=document.getElementById('date').value;
+      const time=document.getElementById('time').value;
+      if(!date||!time) throw new Error('请完整填写日期和时间');
+
+      const [y,m,d]=date.split('-').map(v=>parseInt(v,10));
+      const [hh,mm]=time.split(':').map(v=>parseInt(v,10));
+      // 固定中国时区：按当地时间直接计算
+      const Solar=window.Lunar.Solar;
+      const lunar=Solar.fromYmdHms(y,m,d,hh,mm,0).getLunar();
+      const ec=lunar.getEightChar();
+      const solarText=`${y}年${m}月${d}日 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}（中国标准时间 UTC+8）`;
+
+      const payload={
+        solarText,
+        pillars:{
+          year:splitGZ(ec.getYear()),
+          month:splitGZ(ec.getMonth()),
+          day:splitGZ(ec.getDay()),
+          time:splitGZ(ec.getTime())
+        },
+        shensha:{
+          taohua:(lunar.getPeachBlossom&&lunar.getPeachBlossom())||'',
+          tianyi:(lunar.getTianYi&&lunar.getTianYi())|| (lunar.getTianYiGuiRen&&lunar.getTianYiGuiRen()) || '',
+          wencang:(lunar.getWenChang&&lunar.getWenChang())|| (lunar.getWenchang&&lunar.getWenchang()) || '',
+          yima:(lunar.getYiMa&&lunar.getYiMa())|| (lunar.getYima&&lunar.getYima()) || '',
+          rde:(lunar.getRiDe&&lunar.getRiDe())||'',
+          yde:(lunar.getYueDe&&lunar.getYueDe())||''
+        },
+        meta:{
+          shengxiao:lunar.getYearShengXiao(),
+          lunarDate:lunar.toString(),
+          jieqi:(lunar.getJieQi&&lunar.getJieQi())||''
+        }
+      };
+      renderResult(payload);
+    }catch(e){
+      out(`<p class="error">计算失败：${e.message||e}</p>`);
+    }
   }
-  document.getElementById('bazi-form').addEventListener('submit',e=>{e.preventDefault();compute();});
-  document.getElementById('reset').addEventListener('click',()=>{
-    document.getElementById('bazi-form').reset();
-    out('<p class="muted">请先填写上方信息并点击“计算”。</p>');
-  });
-});
+
+  function init(){
+    const ok = !!(window.Lunar && window.Lunar.Solar);
+    engineEl.textContent = ok ? '引擎：JavaScript（离线·已内联）' : '引擎：初始化失败（未找到 lunar-javascript）';
+    document.getElementById('bazi-form').addEventListener('submit',e=>{e.preventDefault();compute();});
+    document.getElementById('reset').addEventListener('click',()=>{
+      document.getElementById('bazi-form').reset();
+      out('<p class="muted">请先填写上方信息并点击“计算”。</p>');
+    });
+  }
+  document.addEventListener('DOMContentLoaded', init);
+})();
 </script>
 </body>
 </html>
