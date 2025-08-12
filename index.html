@@ -1,388 +1,235 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>八字与神煞计算器（单文件）</title>
-  <style>
-    :root{
-      --bg:#0b0f14;--card:#121821;--muted:#8aa0b3;--text:#e6f0ff;
-      --accent:#66d9ef;--accent2:#a6e22e;--danger:#ff6b6b;--border:#233041;
-    }
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
-      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans CJK SC","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.5}
-    header{padding:32px 16px 8px;text-align:center}
-    h1{margin:0 0 8px;font-size:28px}.subtitle{margin:0;color:var(--muted)}
-    main{max-width:940px;margin:16px auto 48px;padding:0 16px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 10px 24px rgba(0,0,0,.3)}
-    .row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-    .row label{min-width:120px;color:var(--muted)}
-    .row input[type="date"],.row input[type="time"],.row select{
-      flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#0e1520;color:var(--text);outline:none}
-    .row.checkbox label{display:flex;align-items:center;gap:8px}
-    .actions{justify-content:flex-end}
-    button{appearance:none;border:0;border-radius:10px;padding:10px 16px;color:#071019;
-      background:linear-gradient(135deg,var(--accent),var(--accent2));font-weight:700;cursor:pointer}
-    button#reset{background:transparent;border:1px solid var(--border);color:var(--muted)}
-    #engine{margin-top:8px;color:var(--muted);font-size:12px}
-    .output .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    table.pillars{width:100%;border-collapse:collapse;margin-top:8px}
-    table.pillars th,table.pillars td{border-bottom:1px solid var(--border);padding:8px;text-align:left}
-    ul.stars{list-style:none;padding:0}
-    ul.stars li{padding:6px 0;border-bottom:1px dashed var(--border)}
-    .muted{color:var(--muted)}.error{color:var(--danger)}
-    footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12px}
-  </style>
-  <!-- Pyodide：浏览器内跑 Python；按需加载 -->
-  <script defer src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>八字与神煞计算器（城市时区版）</title>
+<!-- Moment.js + Moment-Timezone for timezone list & conversions -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.45/moment-timezone-with-data.min.js"></script>
+<style>
+:root{--bg:#0b0f14;--card:#121821;--muted:#8aa0b3;--text:#e6f0ff;
+--accent:#66d9ef;--accent2:#a6e22e;--danger:#ff6b6b;--border:#233041}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans CJK SC","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.5}
+header{text-align:center;padding:32px 16px 8px}
+h1{margin:0 0 8px;font-size:28px}.subtitle{margin:0;color:var(--muted)}
+main{max-width:940px;margin:16px auto 48px;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 10px 24px rgba(0,0,0,.3)}
+.row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.row label{min-width:120px;color:var(--muted)}
+.row input[type="date"],.row input[type="time"],.row select{
+flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--border);
+background:#0e1520;color:var(--text);outline:none}
+.actions{justify-content:flex-end}
+button{appearance:none;border:0;border-radius:10px;padding:10px 16px;
+color:#071019;background:linear-gradient(135deg,var(--accent),var(--accent2));
+font-weight:700;cursor:pointer}
+button#reset{background:transparent;border:1px solid var(--border);color:var(--muted)}
+#engine{margin-top:8px;color:var(--muted);font-size:12px}
+.output .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+table.pillars{width:100%;border-collapse:collapse;margin-top:8px}
+table.pillars th,table.pillars td{border-bottom:1px solid var(--border);padding:8px;text-align:left}
+ul.stars{list-style:none;padding:0}
+ul.stars li{padding:6px 0;border-bottom:1px dashed var(--border)}
+.muted{color:var(--muted)}.error{color:var(--danger)}
+footer{text-align:center;color:var(--muted);padding:24px 16px 48px;font-size:12px}
+</style>
+<script defer src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
 </head>
 <body>
-  <header>
-    <h1>八字与神煞计算器（单文件）</h1>
-    <p class="subtitle">公历日期/时间/时区/夏令时 → 四柱八字 + 常见神煞（桃花、天乙贵人、文昌、驿马、日德、月德）</p>
-  </header>
-
-  <main>
-    <section class="card">
-      <h2>输入</h2>
-      <form id="bazi-form">
-        <div class="row">
-          <label for="date">公历日期</label>
-          <input id="date" name="date" type="date" required />
-        </div>
-
-        <div class="row">
-          <label for="time">时间</label>
-          <input id="time" name="time" type="time" step="60" value="12:00" required />
-        </div>
-
-        <div class="row">
-          <label for="tz">时区（UTC 偏移）</label>
-          <select id="tz" name="tz">
-            <option value="-12">UTC−12</option><option value="-11">UTC−11</option>
-            <option value="-10">UTC−10</option><option value="-9">UTC−9</option>
-            <option value="-8">UTC−8（北美西海岸）</option><option value="-7">UTC−7</option>
-            <option value="-6">UTC−6</option><option value="-5">UTC−5</option>
-            <option value="-4">UTC−4</option><option value="-3">UTC−3</option>
-            <option value="-2">UTC−2</option><option value="-1">UTC−1</option>
-            <option value="0" selected>UTC±0（伦敦）</option><option value="1">UTC+1</option>
-            <option value="2">UTC+2</option><option value="3">UTC+3</option>
-            <option value="4">UTC+4</option><option value="5">UTC+5</option>
-            <option value="5.5">UTC+5:30（印度）</option><option value="5.75">UTC+5:45（尼泊尔）</option>
-            <option value="6">UTC+6</option><option value="7">UTC+7（泰国/越南）</option>
-            <option value="8">UTC+8（中国大陆/台港澳/新加坡）</option>
-            <option value="9">UTC+9（日本/韩国）</option><option value="9.5">UTC+9:30</option>
-            <option value="10">UTC+10</option><option value="11">UTC+11</option>
-            <option value="12">UTC+12</option><option value="13">UTC+13</option>
-            <option value="14">UTC+14</option>
-          </select>
-        </div>
-
-        <div class="row checkbox">
-          <label>
-            <input id="dst" name="dst" type="checkbox" />
-            夏令时（DST）+1 小时
-          </label>
-        </div>
-
-        <div class="row actions">
-          <button type="submit">计算</button>
-          <button type="button" id="reset">清空</button>
-        </div>
-
-        <p id="engine" class="muted">引擎：加载中…</p>
-      </form>
-    </section>
-
-    <section class="card">
-      <h2>输出</h2>
-      <div id="output" class="output">
-        <p class="muted">请先填写上方信息并点击“计算”。</p>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>说明</h2>
-      <ul class="notes">
-        <li>月柱采用节气（如立春）分界，由所用库精确计算。</li>
-        <li>输入的日期/时间视为“当地时间”；“UTC 偏移 + 夏令时”用于显示。</li>
-        <li>神煞集：桃花、天乙贵人、文昌、驿马、日德、月德（若库版本未暴露接口则留空）。</li>
-        <li>无法加载 Python 包时，会自动切换到 JavaScript 版本。</li>
-      </ul>
-    </section>
-  </main>
-
-  <footer>
-    <p>© 2025 BaZi Calculator · 开源示例，仅供学习参考</p>
-  </footer>
-
-  <script>
-    /* global loadPyodide */
-    const out = (html) => { document.getElementById('output').innerHTML = html; };
-    const engineEl = document.getElementById('engine');
-
-    let ENGINE = { mode: 'loading', pyodide: null, lunarJS: null };
-
-    async function initEngines() {
-      // 先尝试 Pyodide + lunar-python
-      try {
-        engineEl.textContent = '引擎：正在加载 Python…';
-        const pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/' });
-        ENGINE.pyodide = pyodide;
-        engineEl.textContent = '引擎：正在安装 lunar-python…（首次会稍慢）';
-        await pyodide.loadPackage('micropip');
-        await pyodide.runPythonAsync(`
-import micropip
-try:
-    await micropip.install('lunar-python')
-    INSTALLED = True
-except Exception as e:
-    INSTALLED = False
-    ERR = str(e)
-        `);
-        if (ENGINE.pyodide.globals.get('INSTALLED')) {
-          ENGINE.mode = 'py';
-          engineEl.textContent = '引擎：Python（lunar-python）';
-          return;
-        }
-      } catch (e) {
-        // 忽略并降级
-      }
-
-      // 降级到 JS 库
-      try {
-        engineEl.textContent = '引擎：Python 失败，尝试 JavaScript 库…';
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://unpkg.com/lunar-javascript';
-          s.onload = resolve;
-          s.onerror = reject;
-          document.head.appendChild(s);
-        });
-        if (window.Lunar) {
-          ENGINE.mode = 'js';
-          ENGINE.lunarJS = window;
-          engineEl.textContent = '引擎：JavaScript（lunar-javascript）';
-          return;
-        }
-      } catch (e) {}
-
-      ENGINE.mode = 'fail';
-      engineEl.textContent = '引擎：加载失败（离线或网络受限）';
-    }
-
-    function parseInput() {
-      const date = document.getElementById('date').value;
-      const time = document.getElementById('time').value;
-      const tz = parseFloat(document.getElementById('tz').value);
-      const dst = document.getElementById('dst').checked ? 1 : 0;
-      if (!date || !time || Number.isNaN(tz)) throw new Error('请完整填写日期、时间与时区。');
-      const [y,m,d] = date.split('-').map(n=>parseInt(n,10));
-      const [hh,mm] = time.split(':').map(n=>parseInt(n,10));
-      const offset = tz + dst;
-      return { y,m,d,hh,mm,ss:0, offset };
-    }
-
-    function splitGZ(gz) {
-      if (!gz) return { gan:'', zhi:'', gz:'' };
-      const zhi='子丑寅卯辰巳午未申酉戌亥';
-      for (let i=0;i<gz.length;i++){
-        if (zhi.includes(gz[i])) return { gan:gz.slice(0,i), zhi:gz.slice(i), gz };
-      }
-      return { gan:'', zhi:'', gz };
-    }
-
-    function renderResult(payload) {
-      const { solarText, pillars, shensha, meta } = payload;
-      out(`
-        <div class="grid">
-          <div><h3>公历</h3><p>${solarText}</p></div>
-          <div><h3>农历</h3><p>${meta.lunarDate || '—'}</p></div>
-          <div><h3>生肖</h3><p>${meta.shengxiao || '—'}</p></div>
-          <div><h3>节气</h3><p>${meta.jieqi || '—'}</p></div>
-        </div>
-
-        <h3>四柱八字</h3>
-        <table class="pillars">
-          <thead><tr><th>柱</th><th>天干</th><th>地支</th><th>干支</th></tr></thead>
-          <tbody>
-            <tr><td>年柱</td><td>${pillars.year.gan}</td><td>${pillars.year.zhi}</td><td>${pillars.year.gz}</td></tr>
-            <tr><td>月柱</td><td>${pillars.month.gan}</td><td>${pillars.month.zhi}</td><td>${pillars.month.gz}</td></tr>
-            <tr><td>日柱</td><td>${pillars.day.gan}</td><td>${pillars.day.zhi}</td><td>${pillars.day.gz}</td></tr>
-            <tr><td>时柱</td><td>${pillars.time.gan}</td><td>${pillars.time.zhi}</td><td>${pillars.time.gz}</td></tr>
-          </tbody>
-        </table>
-
-        <h3>常见神煞</h3>
-        <ul class="stars">
-          <li><strong>桃花：</strong>${shensha.taohua || '—'}</li>
-          <li><strong>天乙贵人：</strong>${shensha.tianyi || '—'}</li>
-          <li><strong>文昌：</strong>${shensha.wencang || '—'}</li>
-          <li><strong>驿马：</strong>${shensha.yima || '—'}</li>
-          <li><strong>日德：</strong>${shensha.rde || '—'}</li>
-          <li><strong>月德：</strong>${shensha.yde || '—'}</li>
-        </ul>
-      `);
-    }
-
-    async function computeWithPython(input) {
-      const { y,m,d,hh,mm,ss } = input;
-      const code = `
+<header>
+<h1>八字与神煞计算器（城市时区版）</h1>
+<p class="subtitle">公历日期/时间/城市时区 → 四柱八字 + 常见神煞</p>
+</header>
+<main>
+<section class="card">
+<h2>输入</h2>
+<form id="bazi-form">
+<div class="row">
+<label for="date">公历日期</label>
+<input id="date" type="date" required>
+</div>
+<div class="row">
+<label for="time">时间</label>
+<input id="time" type="time" step="60" value="12:00" required>
+</div>
+<div class="row">
+<label for="tz">城市时区</label>
+<select id="tz" required></select>
+</div>
+<div class="row actions">
+<button type="submit">计算</button>
+<button type="button" id="reset">清空</button>
+</div>
+<p id="engine" class="muted">引擎：加载中…</p>
+</form>
+</section>
+<section class="card">
+<h2>输出</h2>
+<div id="output" class="output">
+<p class="muted">请先填写上方信息并点击“计算”。</p>
+</div>
+</section>
+</main>
+<footer>© 2025 BaZi Calculator</footer>
+<script>
+const tzSelect=document.getElementById('tz');
+moment.tz.names().forEach(name=>{
+  const opt=document.createElement('option');
+  opt.value=name;
+  opt.textContent=`${name} (UTC${moment.tz(name).format('Z')})`;
+  tzSelect.appendChild(opt);
+});
+const out=(html)=>{document.getElementById('output').innerHTML=html};
+const engineEl=document.getElementById('engine');
+let ENGINE={mode:'loading',pyodide:null,lunarJS:null};
+async function initEngines(){
+  try{
+    engineEl.textContent='引擎：正在加载 Python…';
+    const pyodide=await loadPyodide({indexURL:'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/'});
+    ENGINE.pyodide=pyodide;
+    engineEl.textContent='引擎：正在安装 lunar-python…';
+    await pyodide.loadPackage('micropip');
+    await pyodide.runPythonAsync(`import micropip; await micropip.install('lunar-python'); OK=True`);
+    ENGINE.mode='py';engineEl.textContent='引擎：Python（lunar-python）';return;
+  }catch(e){}
+  try{
+    engineEl.textContent='引擎：Python 失败，尝试 JavaScript 库…';
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://unpkg.com/lunar-javascript';
+      s.onload=res;s.onerror=rej;
+      document.head.appendChild(s);
+    });
+    if(window.Lunar){ENGINE.mode='js';ENGINE.lunarJS=window;engineEl.textContent='引擎：JavaScript（lunar-javascript）';return;}
+  }catch(e){}
+  ENGINE.mode='fail';engineEl.textContent='引擎：加载失败';
+}
+function splitGZ(gz){if(!gz)return{gan:'',zhi:'',gz:''};const zhi='子丑寅卯辰巳午未申酉戌亥';for(let i=0;i<gz.length;i++){if(zhi.includes(gz[i]))return{gan:gz.slice(0,i),zhi:gz.slice(i),gz};}return{gan:'',zhi:'',gz};}
+function renderResult(payload){
+  const {solarText,pillars,shensha,meta}=payload;
+  out(`<div class="grid">
+  <div><h3>公历</h3><p>${solarText}</p></div>
+  <div><h3>农历</h3><p>${meta.lunarDate||'—'}</p></div>
+  <div><h3>生肖</h3><p>${meta.shengxiao||'—'}</p></div>
+  <div><h3>节气</h3><p>${meta.jieqi||'—'}</p></div>
+</div>
+<h3>四柱八字</h3>
+<table class="pillars"><thead><tr><th>柱</th><th>天干</th><th>地支</th><th>干支</th></tr></thead>
+<tbody>
+<tr><td>年柱</td><td>${pillars.year.gan}</td><td>${pillars.year.zhi}</td><td>${pillars.year.gz}</td></tr>
+<tr><td>月柱</td><td>${pillars.month.gan}</td><td>${pillars.month.zhi}</td><td>${pillars.month.gz}</td></tr>
+<tr><td>日柱</td><td>${pillars.day.gan}</td><td>${pillars.day.zhi}</td><td>${pillars.day.gz}</td></tr>
+<tr><td>时柱</td><td>${pillars.time.gan}</td><td>${pillars.time.zhi}</td><td>${pillars.time.gz}</td></tr>
+</tbody></table>
+<h3>常见神煞</h3>
+<ul class="stars">
+<li><strong>桃花：</strong>${shensha.taohua||'—'}</li>
+<li><strong>天乙贵人：</strong>${shensha.tianyi||'—'}</li>
+<li><strong>文昌：</strong>${shensha.wencang||'—'}</li>
+<li><strong>驿马：</strong>${shensha.yima||'—'}</li>
+<li><strong>日德：</strong>${shensha.rde||'—'}</li>
+<li><strong>月德：</strong>${shensha.yde||'—'}</li>
+</ul>`);
+}
+async function computeWithPython(localY,localM,localD,localH,localMin){
+  const code=`
 from lunar_python import Solar
-solar = Solar.fromYmdHms(${y}, ${m}, ${d}, ${hh}, ${mm}, ${ss})
+solar = Solar.fromYmdHms(${localY},${localM},${localD},${localH},${localMin},0)
 lunar = solar.getLunar()
 ec = lunar.getEightChar()
-
-def safe(call, default=''):
-    try:
-        v = call()
-        return v if isinstance(v, str) else str(v)
-    except Exception:
-        return default
-
-year_gz = safe(ec.getYear)
-month_gz = safe(ec.getMonth)
-day_gz = safe(ec.getDay)
-time_gz = safe(ec.getTime)
-
-# 拆分干支
+def safe(c): 
+  try: v=c(); return v if isinstance(v,str) else str(v)
+  except: return ''
 def split_gz(gz):
-    tian_gan = '甲乙丙丁戊己庚辛壬癸'
-    di_zhi = '子丑寅卯辰巳午未申酉戌亥'
-    if not gz: return ('','','')
-    idx = -1
-    for i,ch in enumerate(gz):
-        if ch in di_zhi:
-            idx = i
-            break
-    if idx>0:
-        return (gz[:idx], gz[idx:], gz)
-    return ('','',gz)
-
-year_g,year_z,year = split_gz(year_gz)
-month_g,month_z,month = split_gz(month_gz)
-day_g,day_z,day = split_gz(day_gz)
-time_g,time_z,time = split_gz(time_gz)
-
-# 元信息
-shengxiao = safe(lunar.getYearShengXiao)
-nongli = safe(lunar.toString)
-jieqi = ''
-try:
-    jq = lunar.getJieQi()
-    if jq: jieqi = jq
-except Exception:
-    pass
-
-# 神煞（不同版本 API 可能不可用，尽量兼容）
-def try_calls(obj, names):
-    for n in names:
-        try:
-            f = getattr(obj, n)
-            v = f()
-            if v: return v if isinstance(v, str) else str(v)
-        except Exception:
-            pass
-    return ''
-
-taohua = try_calls(lunar, ['getPeachBlossom','getTaohua'])
-tianyi = try_calls(lunar, ['getTianYi','getTianYiGuiRen'])
-wencang = try_calls(lunar, ['getWenChang','getWenchang'])
-yima   = try_calls(lunar, ['getYiMa','getYima'])
-rde    = try_calls(lunar, ['getRiDe'])
-yde    = try_calls(lunar, ['getYueDe'])
-
+  dz='子丑寅卯辰巳午未申酉戌亥'
+  if not gz: return ('','','')
+  for i,ch in enumerate(gz):
+    if ch in dz: return (gz[:i],gz[i:],gz)
+  return ('','',gz)
+year_g,year_z,year = split_gz(safe(ec.getYear))
+month_g,month_z,month = split_gz(safe(ec.getMonth))
+day_g,day_z,day = split_gz(safe(ec.getDay))
+time_g,time_z,time = split_gz(safe(ec.getTime))
+def tc(names):
+  for n in names:
+    try:
+      v=getattr(lunar,n)()
+      if v: return v if isinstance(v,str) else str(v)
+    except: pass
+  return ''
 result = {
   'pillars': {
-    'year':  {'gan': year_g,  'zhi': year_z,  'gz': year},
-    'month': {'gan': month_g, 'zhi': month_z, 'gz': month},
-    'day':   {'gan': day_g,   'zhi': day_z,   'gz': day},
-    'time':  {'gan': time_g,  'zhi': time_z,  'gz': time},
+    'year':{'gan':year_g,'zhi':year_z,'gz':year},
+    'month':{'gan':month_g,'zhi':month_z,'gz':month},
+    'day':{'gan':day_g,'zhi':day_z,'gz':day},
+    'time':{'gan':time_g,'zhi':time_z,'gz':time}
   },
-  'shensha': {
-    'taohua': taohua,
-    'tianyi': tianyi,
-    'wencang': wencang,
-    'yima': yima,
-    'rde': rde,
-    'yde': yde,
+  'shensha':{
+    'taohua':tc(['getPeachBlossom','getTaohua']),
+    'tianyi':tc(['getTianYi','getTianYiGuiRen']),
+    'wencang':tc(['getWenChang','getWenchang']),
+    'yima':tc(['getYiMa','getYima']),
+    'rde':tc(['getRiDe']),
+    'yde':tc(['getYueDe']),
   },
-  'meta': {
-    'shengxiao': shengxiao,
-    'lunarDate': nongli,
-    'jieqi': jieqi,
+  'meta':{
+    'shengxiao':safe(lunar.getYearShengXiao),
+    'lunarDate':safe(lunar.toString),
+    'jieqi':safe(lunar.getJieQi)
   }
 }
-      `;
-      const py = ENGINE.pyodide;
-      const res = await py.runPythonAsync(code + '\nresult');
-      return res.toJs();
-    }
-
-    function buildPayloadFromJS(lunar, solarText) {
-      const ec = lunar.getEightChar();
-      const pillars = {
-        year:  (function(){const gz=ec.getYear(); return splitGZ(gz);})(),
-        month: (function(){const gz=ec.getMonth(); return splitGZ(gz);})(),
-        day:   (function(){const gz=ec.getDay(); return splitGZ(gz);})(),
-        time:  (function(){const gz=ec.getTime(); return splitGZ(gz);})(),
-      };
-      const shensha = {
-        taohua: (lunar.getPeachBlossom && lunar.getPeachBlossom()) || (lunar.getTaohua && lunar.getTaohua()) || '',
-        tianyi: (lunar.getTianYi && lunar.getTianYi()) || (lunar.getTianYiGuiRen && lunar.getTianYiGuiRen()) || '',
-        wencang: (lunar.getWenChang && lunar.getWenChang()) || (lunar.getWenchang && lunar.getWenchang()) || '',
-        yima: (lunar.getYiMa && lunar.getYiMa()) || (lunar.getYima && lunar.getYima()) || '',
-        rde: (lunar.getRiDe && lunar.getRiDe()) || '',
-        yde: (lunar.getYueDe && lunar.getYueDe()) || '',
-      };
-      const meta = {
-        shengxiao: lunar.getYearShengXiao(),
-        lunarDate: lunar.toString(),
-        jieqi: lunar.getJieQi && lunar.getJieQi() || '',
-      };
-      return { solarText, pillars, shensha, meta };
-    }
-
-    async function computeWithJS(input) {
-      const { y,m,d,hh,mm,ss } = input;
-      const Solar = ENGINE.lunarJS.Solar;
-      const solar = Solar.fromYmdHms(y,m,d,hh,mm,ss);
-      const lunar = solar.getLunar();
-      const solarText = `${y}年${m}月${d}日 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}（UTC${input.offset>=0?'+':''}${input.offset}）`;
-      return buildPayloadFromJS(lunar, solarText);
-    }
-
-    async function compute() {
-      try {
-        const input = parseInput();
-        const solarText = `${input.y}年${input.m}月${input.d}日 ${String(input.hh).padStart(2,'0')}:${String(input.mm).padStart(2,'0')}（UTC${input.offset>=0?'+':''}${input.offset}）`;
-        let payload;
-        if (ENGINE.mode === 'py') {
-          const pyRes = await computeWithPython(input);
-          // 把 Python 结果与 solarText 合并
-          payload = { ...pyRes, solarText };
-        } else if (ENGINE.mode === 'js') {
-          payload = await computeWithJS(input);
-        } else {
-          throw new Error('没有可用的计算引擎，请检查网络并刷新页面。');
-        }
-        renderResult(payload);
-      } catch (e) {
-        out(`<p class="error">计算失败：${e.message || e}</p>`);
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      await initEngines();
-      const form = document.getElementById('bazi-form');
-      const resetBtn = document.getElementById('reset');
-      form.addEventListener('submit', (e) => { e.preventDefault(); compute(); });
-      resetBtn.addEventListener('click', () => {
-        form.reset();
-        out('<p class="muted">请先填写上方信息并点击“计算”。</p>');
-      });
-    });
-  </script>
+`;
+  const res=await ENGINE.pyodide.runPythonAsync(code+'\nresult');
+  return res.toJs();
+}
+function computeWithJS(localY,localM,localD,localH,localMin,solarText){
+  const Solar=ENGINE.lunarJS.Solar;
+  const lunar=Solar.fromYmdHms(localY,localM,localD,localH,localMin,0).getLunar();
+  const ec=lunar.getEightChar();
+  return {
+    solarText,
+    pillars:{
+      year:splitGZ(ec.getYear()),month:splitGZ(ec.getMonth()),
+      day:splitGZ(ec.getDay()),time:splitGZ(ec.getTime())
+    },
+    shensha:{
+      taohua:(lunar.getPeachBlossom&&lunar.getPeachBlossom())||'',
+      tianyi:(lunar.getTianYi&&lunar.getTianYi())||'',
+      wencang:(lunar.getWenChang&&lunar.getWenChang())||'',
+      yima:(lunar.getYiMa&&lunar.getYiMa())||'',
+      rde:(lunar.getRiDe&&lunar.getRiDe())||'',
+      yde:(lunar.getYueDe&&lunar.getYueDe())||''
+    },
+    meta:{shengxiao:lunar.getYearShengXiao(),lunarDate:lunar.toString(),jieqi:lunar.getJieQi()||''}
+  };
+}
+async function compute(){
+  try{
+    const date=document.getElementById('date').value;
+    const time=document.getElementById('time').value;
+    const tz=document.getElementById('tz').value;
+    if(!date||!time||!tz)throw new Error('请完整填写');
+    const [y,m,d]=date.split('-').map(n=>parseInt(n,10));
+    const [hh,mm]=time.split(':').map(n=>parseInt(n,10));
+    const local=moment.tz({year:y,month:m-1,day:d,hour:hh,minute:mm},tz);
+    const localY=local.year(),localM=local.month()+1,localD=local.date(),localH=local.hour(),localMin=local.minute();
+    const offsetH=local.utcOffset()/60;
+    const solarText=`${localY}年${localM}月${localD}日 ${String(localH).padStart(2,'0')}:${String(localMin).padStart(2,'0')}（${tz}，UTC${offsetH>=0?'+':''}${offsetH}）`;
+    let payload;
+    if(ENGINE.mode==='py'){payload=await computeWithPython(localY,localM,localD,localH,localMin);payload.solarText=solarText;}
+    else if(ENGINE.mode==='js'){payload=computeWithJS(localY,localM,localD,localH,localMin,solarText);}
+    else throw new Error('没有可用引擎');
+    renderResult(payload);
+  }catch(e){out(`<p class="error">计算失败：${e.message}</p>`);}
+}
+document.addEventListener('DOMContentLoaded',async()=>{
+  await initEngines();
+  document.getElementById('bazi-form').addEventListener('submit',e=>{e.preventDefault();compute();});
+  document.getElementById('reset').addEventListener('click',()=>{document.getElementById('bazi-form').reset();out('<p class="muted">请先填写上方信息并点击“计算”。</p>');});
+});
+</script>
 </body>
 </html>
