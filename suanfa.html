@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>八字与神煞计算器</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- Pyodide：用于在浏览器里运行 Python 并安装 lunar-python -->
+  <script defer src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+  <script defer src="./script.js"></script>
+</head>
+<body>
+  <header>
+    <h1>八字与神煞计算器</h1>
+    <p class="subtitle">输入生日（日期、时间、时区、夏令时），输出四柱八字与常见神煞</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>输入</h2>
+      <form id="bazi-form">
+        <div class="row">
+          <label for="date">公历日期</label>
+          <input id="date" name="date" type="date" required />
+        </div>
+
+        <div class="row">
+          <label for="time">时间</label>
+          <input id="time" name="time" type="time" step="60" value="12:00" required />
+        </div>
+
+        <div class="row">
+          <label for="tz">时区（UTC 偏移）</label>
+          <select id="tz" name="tz">
+            <!-- 固定 UTC 偏移，简化跨平台一致性；需要城市级时区可后续扩展 -->
+            <!-- -12 到 +14 -->
+            <option value="-12">UTC−12</option>
+            <option value="-11">UTC−11</option>
+            <option value="-10">UTC−10</option>
+            <option value="-9">UTC−9</option>
+            <option value="-8">UTC−8（北美西海岸）</option>
+            <option value="-7">UTC−7</option>
+            <option value="-6">UTC−6</option>
+            <option value="-5">UTC−5</option>
+            <option value="-4">UTC−4</option>
+            <option value="-3">UTC−3</option>
+            <option value="-2">UTC−2</option>
+            <option value="-1">UTC−1</option>
+            <option value="0" selected>UTC±0（伦敦）</option>
+            <option value="1">UTC+1</option>
+            <option value="2">UTC+2</option>
+            <option value="3">UTC+3</option>
+            <option value="4">UTC+4</option>
+            <option value="5">UTC+5</option>
+            <option value="5.5">UTC+5:30（印度）</option>
+            <option value="5.75">UTC+5:45（尼泊尔）</option>
+            <option value="6">UTC+6</option>
+            <option value="7">UTC+7（泰国/越南）</option>
+            <option value="8">UTC+8（中国大陆/台港澳/新加坡）</option>
+            <option value="9">UTC+9（日本/韩国）</option>
+            <option value="9.5">UTC+9:30</option>
+            <option value="10">UTC+10</option>
+            <option value="11">UTC+11</option>
+            <option value="12">UTC+12</option>
+            <option value="13">UTC+13</option>
+            <option value="14">UTC+14</option>
+          </select>
+        </div>
+
+        <div class="row checkbox">
+          <label>
+            <input id="dst" name="dst" type="checkbox" />
+            夏令时（DST）+1 小时
+          </label>
+        </div>
+
+        <div class="row actions">
+          <button type="submit">计算</button>
+          <button type="button" id="reset">清空</button>
+        </div>
+
+        <p id="engine" class="muted">引擎：加载中…</p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>输出</h2>
+      <div id="output" class="output">
+        <p class="muted">请先填写上方信息并点击“计算”。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>说明</h2>
+      <ul class="notes">
+        <li>月柱采用节气（立春等）分界，精确到分钟，由所用库（Python 或 JS 版本）计算。</li>
+        <li>“时区 + 夏令时”决定换算后的当地时间，再进入八字计算。</li>
+        <li>神煞集：桃花、天乙贵人、文昌、驿马、日德、月德（以库内算法为准）。</li>
+        <li>如果 Python 包加载失败，页面会自动切换到同源的 JavaScript 库。</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2025 BaZi Calculator · 开源示例，仅供学习参考</p>
+  </footer>
+</body>
+</html>
